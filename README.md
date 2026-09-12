@@ -110,7 +110,12 @@ plt.title('Ultra-Fast   Green = GT   Red = Prediction', fontsize=14); plt.show()
 3. **实验二真实数据需要较多轮次**：车道线仅占约 2% 像素，1 轮时模型会全预测背景（mIoU ≈ 0.48，图表看不出车道线），
    20 轮左右才能看出形状。演示建议 20 轮，边跑边讲 ASPP 原理。
 4. **训练必须用 PyNative 模式**（实验一的 `Total_loss.construct` 内有 `print`，Graph 模式无法编译）。
-5. **SSH 跑长任务会断**：ModelArts 上 `nohup`/`setsid` 后台进程会随 SSH 断开被杀，
+5. **`batch_size` 不要设 4**：昇腾 910B 实测，batch=4 时 loss 必变 `nan`（lr 降到 5e-4 仍发散），
+   batch=2（默认）稳定，batch=8 需配 `--lr 2.5e-4`。脚本内置了 nan 检测，一发散就中止并提示。
+6. **NPU 利用率显示 0% 属正常**：PyNative 模式下算子逐条从 Python 下发，NPU 大量空等；
+   加上 batch=2 / 320×320 输入单步计算量小，`npu-smi` 的 AICore% 采样窗口平均自然接近 0。
+   已验证模型确实在 NPU 上（4096×4096 矩阵乘 ×20 仅 5.15 秒，CPU 需 60 秒以上）。
+7. **SSH 跑长任务会断**：ModelArts 上 `nohup`/`setsid` 后台进程会随 SSH 断开被杀，
    长训练请直接在 **Jupyter Terminal / Notebook** 里执行。
 
 ## 七、想用更多真实数据

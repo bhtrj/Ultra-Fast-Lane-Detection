@@ -113,8 +113,14 @@ def main():
     for ep in range(1, args.epochs + 1):
         losses = []
         for d in tr.create_dict_iterator():
-            loss = train_net(d['image'], d['mask'])
-            losses.append(float(loss.asnumpy()))
+            fv = float(train_net(d['image'], d['mask']).asnumpy())
+            if fv != fv:                      # nan != nan
+                print('[ERR] 第 %d 轮出现 loss=nan，训练发散，已中止。' % ep)
+                print('      实测（昇腾 910B）：batch_size=2（默认）稳定；')
+                print('      batch_size=4 必发散（lr 降到 5e-4 仍然 nan）；')
+                print('      batch_size=8 需配 --lr 2.5e-4。请改用 --batch_size 2 重跑。')
+                raise SystemExit(1)
+            losses.append(fv)
         # 每个 epoch 在验证集上算 mIoU
         net.set_train(False)
         ious = []
